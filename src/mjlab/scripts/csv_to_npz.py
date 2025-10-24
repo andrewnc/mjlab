@@ -1,3 +1,16 @@
+import os
+
+def _configure_headless_rendering() -> None:
+  """Ensure MuJoCo can render when no display is available."""
+  if os.environ.get("MUJOCO_GL"):
+    return
+  has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+  if not has_display:
+    os.environ["MUJOCO_GL"] = "egl"
+    print("[INFO]: Auto-selected MUJOCO_GL=egl (no display detected)")
+
+_configure_headless_rendering()
+
 from typing import Any
 
 import numpy as np
@@ -313,13 +326,14 @@ def run_sim(
 
         COLLECTION = output_name
         run = wandb.init(
-          project="csv_to_npz", name=COLLECTION, entity="gcbc_researchers"
+          project="csv_to_npz", name=COLLECTION, entity="cartwheel"
         )
         print(f"[INFO]: Logging motion to wandb: {COLLECTION}")
         REGISTRY = "motions"
         logged_artifact = run.log_artifact(
           artifact_or_path="/tmp/motion.npz", name=COLLECTION, type=REGISTRY
         )
+        print(f"wandb-registry-{REGISTRY}/{COLLECTION}")
         run.link_artifact(
           artifact=logged_artifact,
           target_path=f"wandb-registry-{REGISTRY}/{COLLECTION}",
@@ -359,6 +373,8 @@ def main(
     render: Whether to render the simulation and save a video.
     line_range: Range of lines to process from the CSV file.
   """
+  _configure_headless_rendering()
+
   sim_cfg = SimulationCfg()
   sim_cfg.mujoco.timestep = 1.0 / output_fps
 
